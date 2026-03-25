@@ -9,7 +9,7 @@ This project presents a real-time traffic prediction system built using deep lea
 
 The system integrates:
 
-A trained deep learning model (LSTM)
+A trained deep learning model (GRU)
 A backend API for inference
 A frontend map interface for visualization
 
