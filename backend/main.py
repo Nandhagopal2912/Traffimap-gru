@@ -40,7 +40,7 @@ df_coords = df_coords.sort_values("sensor_id")
 sensor_coords = df_coords[['latitude', 'longitude']].values.tolist()
 
 #  Load model
-model = load_model("metr_lstm_model.keras")
+model = load_model("metr_gru_model.keras")
 
 # Time simulation index
 current_idx = 12
