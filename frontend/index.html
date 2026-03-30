@@ -1,69 +1,106 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Real Traffic Prediction</title>
-  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
-  <style>
-    #map { height: 100vh; }
-  </style>
+    <title>Traffic AI Dashboard</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+    <style>
+        body { margin: 0; display: flex; font-family: sans-serif; background: #ecf0f1; }
+        #sidebar { width: 320px; height: 100vh; background: #2c3e50; color: white; padding: 20px; box-sizing: border-box; overflow-y: auto; z-index: 1000; }
+        #map { flex-grow: 1; height: 100vh; }
+        .stat-card { background: #34495e; padding: 15px; border-radius: 8px; margin-bottom: 20px; border-left: 5px solid #3498db; }
+        .congested-item { font-size: 0.9em; border-bottom: 1px solid #4a6278; padding: 10px; cursor: pointer; border-radius: 4px; }
+        .congested-item:hover { background: #3e5871; }
+        .red-text { color: #ff7675; font-weight: bold; }
+        .mph-unit { font-size: 0.5em; color: #bdc3c7; margin-left: 4px; }
+    </style>
 </head>
 <body>
+
+<div id="sidebar">
+    <h2>Traffic Monitor</h2>
+    <div class="stat-card">
+        <small>City Avg Speed</small>
+        <h1 id="avg-val">0.0<span class="mph-unit">MPH</span></h1>
+    </div>
+    <div class="stat-card">
+        <h3>Slowest Sensors</h3>
+        <div id="congested-list">Loading...</div>
+    </div>
+</div>
 
 <div id="map"></div>
 
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-
 <script>
-  const map = L.map('map').setView([34.05, -118.25], 10);
+    const map = L.map('map').setView([34.05, -118.25], 11);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '© OpenStreetMap'
-  }).addTo(map);
+    let markers = [];
+    let sensorIds = [];
+    let stats = { mean: 0, std: 1 };
 
-  let markers = [];
+    function toMPH(val) {
+        return (val * stats.std) + stats.mean;
+    }
 
-  // 🔹 Load REAL sensor coordinates from backend
-  async function loadSensors() {
-    const res = await fetch("http://127.0.0.1:8000/sensors");
-    const data = await res.json();
+    function focusSensor(index) {
+        const marker = markers[index];
+        if (marker) {
+            map.flyTo(marker.getLatLng(), 14);
+            marker.openPopup();
+        }
+    }
 
-    const sensors = data.sensors;
+    async function loadSensors() {
+        try {
+            const res = await fetch("http://127.0.0.1:8000/sensors");
+            const data = await res.json();
+            
+            stats.mean = data.mean;
+            stats.std = data.std;
+            sensorIds = data.ids;
 
-    sensors.forEach(coord => {
-      const marker = L.circleMarker(coord, {
-        radius: 5,
-        color: 'green',
-        fillOpacity: 0.7
-      }).addTo(map);
+            data.sensors.forEach((coord, i) => {
+                const marker = L.circleMarker(coord, { radius: 6, color: '#2ecc71', fillOpacity: 0.8 }).addTo(map);
+                marker.bindPopup(`<b>Sensor: ${sensorIds[i]}</b>`);
+                markers.push(marker);
+            });
+        } catch (e) { console.error("Is backend running?", e); }
+    }
 
-      markers.push(marker);
+    async function updateTraffic() {
+        try {
+            const res = await fetch("http://127.0.0.1:8000/predict");
+            const data = await res.json();
+
+            // Update Average Speed in Sidebar
+            const avgMph = toMPH(data.metrics.average);
+            document.getElementById('avg-val').innerHTML = `${avgMph.toFixed(1)}<span class="mph-unit">MPH</span>`;
+            
+            // Update List
+            const list = document.getElementById('congested-list');
+            list.innerHTML = data.metrics.top_congested.map(s => {
+                const sMph = toMPH(s.val);
+                const sIdx = sensorIds.indexOf(s.id);
+                return `<div class="congested-item" onclick="focusSensor(${sIdx})">
+                            ID: ${s.id} <span class="red-text">${sMph.toFixed(1)} MPH</span>
+                        </div>`;
+            }).join('');
+
+            // Update Map
+            markers.forEach((marker, i) => {
+                const realSpeed = toMPH(data.prediction[i]);
+                let color = realSpeed < 30 ? "#e74c3c" : (realSpeed < 50 ? "#f39c12" : "#2ecc71");
+                marker.setStyle({ color: color, fillColor: color });
+                marker.setPopupContent(`<b>Sensor ${sensorIds[i]}</b><br>Speed: ${realSpeed.toFixed(1)} MPH`);
+            });
+        } catch (e) { console.error("Update error", e); }
+    }
+
+    loadSensors().then(() => {
+        updateTraffic();
+        setInterval(updateTraffic, 3000);
     });
-  }
-
-  // 🔹 Get predictions
-  async function updateTraffic() {
-    const res = await fetch("http://127.0.0.1:8000/predict");
-    const data = await res.json();
-
-    const preds = data.prediction;
-
-    markers.forEach((marker, i) => {
-      const val = preds[i];
-
-      let color = "green";
-      if (val < -0.5) color = "red";
-      else if (val < 0.5) color = "orange";
-
-      marker.setStyle({ color: color });
-    });
-  }
-
-  // Load sensors first
-  loadSensors().then(() => {
-    setInterval(updateTraffic, 3000);
-  });
-
 </script>
-
 </body>
 </html>
