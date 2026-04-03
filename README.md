@@ -2,8 +2,9 @@ Traffic Prediction System using Deep Learning (METR-LA)
 
 This project presents a real-time traffic prediction system built using deep learning and geospatial visualization. It leverages the METR-LA dataset to forecast traffic speeds and displays predictions interactively on a map.
 
-![image alt](https://github.com/Nandhagopal2912/Traffimap-lstm/blob/9384786bf681119b5f25fc25a211c049a2cadd0f/traffimap_snap.jpg)
-![image alt](https://github.com/Nandhagopal2912/Traffimap-lstm/blob/9384786bf681119b5f25fc25a211c049a2cadd0f/trffimap_snap_2.jpg)
+![image alt](https://github.com/Nandhagopal2912/Traffimap-gru/blob/acee7af37f511eb78a83b23dbcf6a587f083e7fb/Images/traffic_map1.jpg
+)
+![image alt](https://github.com/Nandhagopal2912/Traffimap-gru/blob/acee7af37f511eb78a83b23dbcf6a587f083e7fb/Images/traffic_map2.jpg)
 
 
 The system integrates:
